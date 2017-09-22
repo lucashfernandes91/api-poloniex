@@ -17,7 +17,7 @@ Para mais informações sobre a biblioteca acessar: https://github.com/s4w3d0ff/
 
 Scripts aimed at trading in exchange www.poloniex.com
 
-#REQUIREMENTS
+# REQUIREMENTS
 
 All scripts available in this repository depend on the installation of the "python-poloniex" library, which can be installed
 through the following commands:
