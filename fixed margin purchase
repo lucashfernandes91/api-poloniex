@@ -1,0 +1,48 @@
+
+import poloniex
+import json
+import requests
+import time, datetime
+
+# DADOS DE LOGIN / DATA OF LOGIN#
+key = 'YOUR-KEY'
+secret = 'YOUR-SECRET'
+
+currencyPair= "BTC_LTC"           # Par de moedas que deseja trabalhar
+total_btc = 0.07260068            # Total em Bitcon disponível para transacionar
+base_percentage = float(1.5)      # Margem de porcentagem (considera a primeira ordem de compra do livro de ordens)
+
+margem_de_lucro = porcentagem = base_percentage / 100
+
+
+def order_books(currencyPair):
+    response = requests.get("https://poloniex.com/public?command=returnOrderBook&currencyPair=" + currencyPair + "&depth=1")
+    fechamentos = json.loads(response.content)
+    return fechamentos
+
+
+def first_buy_order(order_books):
+    valor = order_books(currencyPair)['bids'][0][0]  # -*-retorna quantidade que está a compra ['asks'][0][1] -*-
+    return float(valor)
+
+
+def purchase_price(margem_de_lucro, first_buy_order):
+    margem_lucro = margem_de_lucro * first_buy_order(order_books)
+    total = float(first_buy_order(order_books)) - margem_lucro
+    total_format = str(total)[0:10]
+    return float(total_format)# Retorna o valor que deve ser a ordem de COMPRA
+
+
+def amount(purchase_price): # CALCULA QUANTIDADE POSSIVEL DE COMPRA (AMOUNT)
+    quantidade_de_compra = total_btc / float(purchase_price(margem_de_lucro, first_buy_order))
+    return str(quantidade_de_compra)[0:10]
+
+rate = str(purchase_price(margem_de_lucro, first_buy_order))
+
+print(first_buy_order(order_books))
+print(purchase_price(margem_de_lucro, first_buy_order))
+print(amount(purchase_price))
+print(rate)
+
+
+send_transaction = poloniex.Poloniex(key=key, secret=secret).buy(currencyPair=currencyPair, rate=rate, amount=amount, orderType=False)
