@@ -1,48 +1,68 @@
-
 import poloniex
 import json
 import requests
 import time, datetime
 
-# DADOS DE LOGIN / DATA OF LOGIN#
-key = 'YOUR-KEY'
-secret = 'YOUR-SECRET'
 
-currencyPair= "BTC_LTC"           # Par de moedas que deseja trabalhar
-total_btc = 0.07260068            # Total em Bitcon disponível para transacionar
-base_percentage = float(1.5)      # Margem de porcentagem (considera a primeira ordem de compra do livro de ordens)
+while True:
+    # DADOS DE LOGIN #
+    key = 'YOUR-KEY'
+    secret = 'YOUR-SECRET'
+    currencyPair = "BTC_XEM"    # Mercado de atuação
+    porcentagem_de_lucro = 1    # Lucro em '%' que deseja
+    total_btc = 0.57185035      # Total em Btc disponível para trading
 
-margem_de_lucro = porcentagem = base_percentage / 100
+    # HORA E DATA DA ORDEM #
+    data_hora = datetime.datetime.now()
+    data = str(data_hora.date())
+    horario = str(data_hora.time())[0:8]
+    hora_da_ordem = data + "   " + horario
 
+    """CONSULTA VALOR ORDER BOOOK E RETORNA O VALOR DE COMPRA"""
+    def response(currencyPair):
+        response = requests.get("https://poloniex.com/public?command=returnOrderBook&currencyPair="+ currencyPair + "&depth=1")
+        fechamentos = json.loads(response.content)
+        return fechamentos
 
-def order_books(currencyPair):
-    response = requests.get("https://poloniex.com/public?command=returnOrderBook&currencyPair=" + currencyPair + "&depth=1")
-    fechamentos = json.loads(response.content)
-    return fechamentos
+    def primeira_ordem_compra(response):
+        valor = response(currencyPair)['bids'][0][0] #-*-retorna quantidade que está a compra ['asks'][0][1] -*-
+        return float(valor)
 
-
-def first_buy_order(order_books):
-    valor = order_books(currencyPair)['bids'][0][0]  # -*-retorna quantidade que está a compra ['asks'][0][1] -*-
-    return float(valor)
-
-
-def purchase_price(margem_de_lucro, first_buy_order):
-    margem_lucro = margem_de_lucro * first_buy_order(order_books)
-    total = float(first_buy_order(order_books)) - margem_lucro
-    total_format = str(total)[0:10]
-    return float(total_format)# Retorna o valor que deve ser a ordem de COMPRA
-
-
-def amount(purchase_price): # CALCULA QUANTIDADE POSSIVEL DE COMPRA (AMOUNT)
-    quantidade_de_compra = total_btc / float(purchase_price(margem_de_lucro, first_buy_order))
-    return str(quantidade_de_compra)[0:10]
-
-rate = str(purchase_price(margem_de_lucro, first_buy_order))
-
-print(first_buy_order(order_books))
-print(purchase_price(margem_de_lucro, first_buy_order))
-print(amount(purchase_price))
-print(rate)
+    def valor_ordem_compra(porcentagem_de_lucro, primeira_ordem_compra):
+        porcentagem = porcentagem_de_lucro / 100
+        margem_lucro = porcentagem * primeira_ordem_compra(response)
+        total = float(primeira_ordem_compra(response)) - margem_lucro
+        return total #Retorna o valor que deve ser a ordem de COMPRA
 
 
-send_transaction = poloniex.Poloniex(key=key, secret=secret).buy(currencyPair=currencyPair, rate=rate, amount=amount, orderType=False)
+
+    """ VERIFICA DADOS DA ORDEM ATIVA """
+    verifica_ordem_ativa = poloniex.Poloniex(key=key, secret=secret).returnOpenOrders(currencyPair)
+    ordem_ativa = verifica_ordem_ativa[0]['orderNumber']
+
+
+    """CANCELA ORDEM ATIVA"""
+    cancela_ordem = poloniex.Poloniex(key=key, secret=secret).cancelOrder(ordem_ativa)
+    ordem_cancelada = cancela_ordem
+
+
+    """CALCULA QUANTIDADE POSSIVEL DE COMPRA (AMOUNT) """
+    amount = str(total_btc / valor_ordem_compra(porcentagem_de_lucro, primeira_ordem_compra))[0:7]
+
+
+    """MONTA TRANSAÇÃO DE COMPRA"""
+    rate = str(valor_ordem_compra(porcentagem_de_lucro, primeira_ordem_compra))[0:10]
+
+
+    """ENVIA A ORDEM DE COMPRA"""
+    envia_transacao = poloniex.Poloniex(key=key, secret=secret).buy(currencyPair=currencyPair, rate=rate, amount=amount, orderType=False)
+
+
+    """IMPRIME OS DADOS DA TRANSAÇÃO"""
+    print(hora_da_ordem)
+    print("Primeira ordem de compra: " + str(primeira_ordem_compra(response)))
+    print("Valor da ordem: " + rate)
+    print("Qtd a comprar: " + amount)
+    print("Dados da transação: " + str(envia_transacao)+ "\n")
+    time.sleep(120)
+
